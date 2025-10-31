@@ -37,15 +37,17 @@ async function ensureSession(request: Request) {
   return { user: result.user, session: result.session };
 }
 
-export async function GET(request: Request, { params }: { params: { formId: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ formId: string }> }) {
   const session = await ensureSession(request);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { formId } = await params;
+
   const form = await prisma.form.findFirst({
     where: {
-      id: params.formId,
+      id: formId,
       ownerId: session.user.id,
     },
     select: {
@@ -113,7 +115,7 @@ export async function GET(request: Request, { params }: { params: { formId: stri
       })),
   }));
 
-  return NextResponse.json({ formId: params.formId, responses: payload });
+  return NextResponse.json({ formId: formId, responses: payload });
 }
 
 const answerSchema = z.object({
@@ -134,12 +136,14 @@ const createResponseSchema = z.object({
   honey: z.string().optional(),
 });
 
-export async function POST(request: Request, { params }: { params: { formId: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ formId: string }> }) {
   const session = await ensureSession(request);
   console.log("[POST] Session data:", session);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const { formId } = await params;
 
   const json = await request.json().catch(() => ({}));
   const parsed = createResponseSchema.safeParse(json);
@@ -165,7 +169,7 @@ export async function POST(request: Request, { params }: { params: { formId: str
 
   const form = await prisma.form.findFirst({
     where: {
-      id: params.formId,
+      id: formId,
       ownerId: session.user.id,
     },
     include: {

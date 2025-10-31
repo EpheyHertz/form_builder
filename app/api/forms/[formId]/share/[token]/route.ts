@@ -8,14 +8,16 @@ async function ensureSession(request: Request) {
   return (result as { data?: { user?: { id: string } } } | null)?.data ?? null;
 }
 
-export async function DELETE(request: Request, { params }: { params: { formId: string; token: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ formId: string; token: string }> }) {
   const session = await ensureSession(request);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { formId, token } = await params;
+
   const shareToken = await prisma.formShareToken.findUnique({
-    where: { token: params.token },
+    where: { token: token },
     select: {
       id: true,
       formId: true,
@@ -24,7 +26,7 @@ export async function DELETE(request: Request, { params }: { params: { formId: s
     },
   });
 
-  if (!shareToken || shareToken.formId !== params.formId || shareToken.ownerId !== session.user.id) {
+  if (!shareToken || shareToken.formId !== formId || shareToken.ownerId !== session.user.id) {
     return NextResponse.json({ error: "Share link not found" }, { status: 404 });
   }
 

@@ -1,0 +1,156 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String     @id @default(cuid())
+  name           String?
+  email          String     @unique
+  emailVerified  Boolean?
+  emailVerifiedAt DateTime?
+  image          String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  accounts       Account[]
+  sessions       Session[]
+  forms          Form[]
+  shareTokens    FormShareToken[]
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  expiresAt  DateTime
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                     String   @id @default(cuid())
+  userId                 String
+  accountId              String
+  providerId             String
+  accessToken            String?
+  refreshToken           String?
+  accessTokenExpiresAt   DateTime?
+  refreshTokenExpiresAt  DateTime?
+  scope                  String?
+  idToken                String?
+  password               String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+model Form {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  fields      FormField[]
+  responses   FormResponse[]
+  shareTokens FormShareToken[]
+
+  @@index([ownerId])
+}
+
+model FormField {
+  id        String   @id @default(cuid())
+  formId    String
+  label     String
+  type      String
+  required  Boolean  @default(false)
+  options   Json?
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  answers   FormResponseAnswer[]
+
+  @@index([formId])
+  @@index([formId, sortOrder])
+}
+
+model FormResponse {
+  id           String   @id @default(cuid())
+  formId       String
+  submittedAt  DateTime @default(now())
+  completionMs Int?
+  metadata     Json?
+
+  form         Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  answers      FormResponseAnswer[]
+
+  @@index([formId])
+  @@index([formId, submittedAt])
+}
+
+model FormResponseAnswer {
+  id         String   @id @default(cuid())
+  responseId String
+  fieldId    String
+  value      Json
+
+  response   FormResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  field      FormField    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@index([responseId])
+  @@index([fieldId])
+}
+
+model FormShareToken {
+  id           String   @id @default(cuid())
+  formId       String
+  ownerId      String
+  token        String   @unique
+  passwordHash String?
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+
+  form         Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  owner        User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+  @@index([ownerId])
+  @@index([expiresAt])
+}

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { auth } from "@/app/lib/auth";
 import { prisma } from "@/app/lib/prisma";
-import type { Prisma } from "@/app/generated/prisma/client";
+import type { Prisma } from "@prisma/client";
 
 type ResponseWithAnswers = Prisma.FormResponseGetPayload<{
   include: {
